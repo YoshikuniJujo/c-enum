@@ -120,20 +120,20 @@ defineShowsPrec t ns = do
 			)) []
 		]
 	where
-	foo d n = varE 'showParen `appE` (varE d `gt` litE (IntegerL 10))
-		`dl` ((litE (StringL (t ++ " ")) `p` varE '(++))
-			`dt` (varE 'showsPrec `appE` litE (IntegerL 11) `appE` varE n))
+	foo d n = varE 'showParen `appE` (varE d .> litE (IntegerL 10))
+		.$ ((litE (StringL (t ++ " ")) `p` varE '(++))
+			... (varE 'showsPrec `appE` litE (IntegerL 11) `appE` varE n))
 
 matchFoo :: String -> MatchQ
 matchFoo f = match (conP (mkName f) []) (normalB $ litE (StringL f) `p` (varE '(++))) []
 
 mkRead :: String -> [String] -> DecQ
 mkRead t ns = instanceD (cxt []) (conT ''Read `appT` conT (mkName t)) . (: [])
-	$ valD (varP 'readPrec) (normalB $ varE 'parens `dl` (varE 'choice `appE` listE (
+	$ valD (varP 'readPrec) (normalB $ varE 'parens .$ (varE 'choice `appE` listE (
 		(readFoo <$> ns) ++
 		[varE 'prec `appE` litE (IntegerL 10) `appE` doE [
 			bindS (conP 'Ident [litP $ StringL t]) $ varE 'lexP,
-			noBindS $ conE (mkName t) `fdl` (varE 'step `appE` varE 'readPrec) ]]
+			noBindS $ conE (mkName t) .<$> (varE 'step `appE` varE 'readPrec) ]]
 		))) []
 
 readFoo :: String -> ExpQ
@@ -141,15 +141,9 @@ readFoo n = doE [
 	bindS (conP 'Ident [litP $ StringL n]) $ varE 'lexP,
 	noBindS $ varE 'pure `appE` conE (mkName n) ]
 
-gt :: ExpQ -> ExpQ -> ExpQ
-e1 `gt` e2 = infixE (Just e1) (varE '(>)) (Just e2)
-
-dl, fdl :: ExpQ -> ExpQ -> ExpQ
-e1 `dl` e2 = infixE (Just e1) (varE '($)) (Just e2)
-e1 `fdl` e2 = infixE (Just e1) (varE '(<$>)) (Just e2)
-
-dt :: ExpQ -> ExpQ -> ExpQ
-e1 `dt` e2 = infixE (Just e1) (varE '(.)) (Just e2)
-
-p :: ExpQ -> ExpQ -> ExpQ
+(...), (.$), (.<$>), (.>), p :: ExpQ -> ExpQ -> ExpQ
+e1 ... e2 = infixE (Just e1) (varE '(.)) (Just e2)
+e1 .$ e2 = infixE (Just e1) (varE '($)) (Just e2)
+e1 .<$> e2 = infixE (Just e1) (varE '(<$>)) (Just e2)
+e1 .> e2 = infixE (Just e1) (varE '(>)) (Just e2)
 ex `p` op = infixE (Just ex) op Nothing

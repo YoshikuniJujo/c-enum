@@ -16,8 +16,9 @@ memo
 	+ [ ] matchFoo
 	+ [ ] mkRead
 	+ [ ] readFoo
-	+ [ ] gt
-	+ [ ] dl, fdl
+	+ [ ] `.>`
+	+ [ ] `.$`
+	+ [ ] `.<$>`
 	+ [ ] p
 * [x] make a document
 	+ [x] README.md
