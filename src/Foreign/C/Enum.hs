@@ -77,16 +77,28 @@ FooOne
 
 -}
 
+data ShowReadClasses = ShowReadClasses {
+	showReadClassesShow :: Bool,
+	showReadClassesRead :: Bool,
+	showReadClassesClasses :: [Name] } deriving Show
+
+popIt :: Eq a => a -> [a] -> (Maybe a, [a])
+popIt x = (listToMaybe `first`) . partition (== x)
+
+showReadClasses :: [Name] -> ShowReadClasses
+showReadClasses ns = ShowReadClasses (isJust s) (isJust r) ns''
+	where (s, ns') = popIt ''Show ns; (r, ns'') = popIt ''Read ns'
+
 mkNewtype :: String -> Name -> [Name] -> DecQ
 mkNewtype nt t ds = newtypeD (cxt []) (mkName nt) [] Nothing
 	(normalC (mkName nt) [bangType (bang noSourceUnpackedness noSourceStrictness) (conT t)])
 	$ (derivClause Nothing . (: []) . conT) <$> ds
 
 mkMembers :: String -> [(String, Integer)] -> DecsQ
-mkMembers t nvs = concat <$> uncurry (mkMemberGen (mkName t) (mkName t)) `mapM` nvs
+mkMembers t nvs = concat <$> uncurry (mkMember (mkName t) (mkName t)) `mapM` nvs
 
-mkMemberGen :: Name -> Name -> String -> Integer -> DecsQ
-mkMemberGen t c n v = sequence [
+mkMember :: Name -> Name -> String -> Integer -> DecsQ
+mkMember t c n v = sequence [
 	patSynSigD (mkName n) (conT t),
 	patSynD (mkName n) (prefixPatSyn [])
 		(explBidir [clause [] (normalB (conE c `appE` litE (IntegerL v))) []])
@@ -115,19 +127,6 @@ defineShowsPrec t ns = do
 matchFoo :: String -> MatchQ
 matchFoo f = match (conP (mkName f) []) (normalB $ litE (StringL f) `p` (varE '(++))) []
 
-gt :: ExpQ -> ExpQ -> ExpQ
-e1 `gt` e2 = infixE (Just e1) (varE '(>)) (Just e2)
-
-dl, fdl :: ExpQ -> ExpQ -> ExpQ
-e1 `dl` e2 = infixE (Just e1) (varE '($)) (Just e2)
-e1 `fdl` e2 = infixE (Just e1) (varE '(<$>)) (Just e2)
-
-dt :: ExpQ -> ExpQ -> ExpQ
-e1 `dt` e2 = infixE (Just e1) (varE '(.)) (Just e2)
-
-p :: ExpQ -> ExpQ -> ExpQ
-ex `p` op = infixE (Just ex) op Nothing
-
 mkRead :: String -> [String] -> DecQ
 mkRead t ns = instanceD (cxt []) (conT ''Read `appT` conT (mkName t)) . (: [])
 	$ valD (varP 'readPrec) (normalB $ varE 'parens `dl` (varE 'choice `appE` listE (
@@ -140,17 +139,17 @@ mkRead t ns = instanceD (cxt []) (conT ''Read `appT` conT (mkName t)) . (: [])
 readFoo :: String -> ExpQ
 readFoo n = doE [
 	bindS (conP 'Ident [litP $ StringL n]) $ varE 'lexP,
-	noBindS $ varE 'pure `appE` conE (mkName n)
-	]
+	noBindS $ varE 'pure `appE` conE (mkName n) ]
 
-data ShowReadClasses = ShowReadClasses {
-	showReadClassesShow :: Bool,
-	showReadClassesRead :: Bool,
-	showReadClassesClasses :: [Name] } deriving Show
+gt :: ExpQ -> ExpQ -> ExpQ
+e1 `gt` e2 = infixE (Just e1) (varE '(>)) (Just e2)
 
-popIt :: Eq a => a -> [a] -> (Maybe a, [a])
-popIt x = (listToMaybe `first`) . partition (== x)
+dl, fdl :: ExpQ -> ExpQ -> ExpQ
+e1 `dl` e2 = infixE (Just e1) (varE '($)) (Just e2)
+e1 `fdl` e2 = infixE (Just e1) (varE '(<$>)) (Just e2)
 
-showReadClasses :: [Name] -> ShowReadClasses
-showReadClasses ns = ShowReadClasses (isJust s) (isJust r) ns''
-	where (s, ns') = popIt ''Show ns; (r, ns'') = popIt ''Read ns'
+dt :: ExpQ -> ExpQ -> ExpQ
+e1 `dt` e2 = infixE (Just e1) (varE '(.)) (Just e2)
+
+p :: ExpQ -> ExpQ -> ExpQ
+ex `p` op = infixE (Just ex) op Nothing
