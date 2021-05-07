@@ -16,7 +16,7 @@ import Control.Arrow (first)
 import Data.Bool (bool)
 import Data.Maybe (isJust, listToMaybe)
 import Data.List (partition)
-import Text.Read (Lexeme(..), lexP, step, prec, readPrec, choice, parens)
+import Text.Read (readPrec, Lexeme(..), step, choice, prec, parens, lexP)
 
 enum :: String -> Name -> [Name] -> [(String, Integer)] -> DecsQ
 enum nt t ds nvs = (\n s r ms -> n : s (r ms))
