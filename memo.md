@@ -2,10 +2,10 @@ memo
 ====
 
 * [ ] make test
-* [ ] use from other projects
+* [x] use from other projects
 * [ ] refactoring
 * [ ] make a document
 	+ [ ] README.md
-	+ [ ] haddock
+	+ [x] haddock
 * [ ] upload to hackage
 * [ ] upload to stackage

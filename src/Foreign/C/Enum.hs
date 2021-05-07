@@ -97,3 +97,52 @@ enum nt t ds nvs = (\n s r ms -> n : s (r ms))
 	where
 	ShowReadClasses bs br ds' = showReadClasses ds
 	ns = fst <$> nvs
+
+{- ^
+
+Write like the following.
+
+@
+enum Foo ''Int [''Show, ''Read, ''Eq] [
+	("FooError", - 1),
+	("FooZero", 0),
+	("FooOne", 1),
+	("FooTwo", 2) ]
+@
+
+Then you get like the following.
+
+@
+newtype Foo = Foo Int deriving Eq
+
+pattern FooError :: Int -> Foo
+pattern FooError <- Foo (- 1) where
+	FooError = Foo (- 1)
+
+pattern FooZero :: Int -> Foo
+...
+
+
+instance Show Foo where
+	showsPrec = ...
+
+instance Read Foo where
+	readPrec = ...
+@
+
+And you can read and show like the following.
+
+@
+> Foo $ - 1
+FooError
+> FooTwo
+FooTwo
+> Foo 3
+Foo 3
+> read "Foo (- 1)" :: Foo
+FooError
+> read \"FooOne\" :: Foo
+FooOne
+@
+
+-}
