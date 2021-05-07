@@ -9,7 +9,7 @@ import Language.Haskell.TH (
 	patSynSigD, patSynD, prefixPatSyn, explBidir,
 	newtypeD, normalC, derivClause,
 	ExpQ, varE, conE, litE, appE, infixE, listE, lamCaseE,
-	conT, appT, varP, conP, litP, MatchQ, match,
+	conT, appT, varP, conP, litP, match,
 	doE, bindS, noBindS,
 	bangType, bang, noSourceUnpackedness, noSourceStrictness )
 import Control.Arrow (first)
@@ -24,9 +24,7 @@ enum nt t ds nvs = (\n s r ms -> n : s (r ms))
 	<*> bool (pure id) ((:) <$> mkShow nt ns) bs
 	<*> bool (pure id) ((:) <$> mkRead nt ns) br
 	<*> mkMembers nt nvs
-	where
-	ShowReadClasses bs br ds' = showReadClasses ds
-	ns = fst <$> nvs
+	where ShowReadClasses bs br ds' = showReadClasses ds; ns = fst <$> nvs
 
 {- ^
 
@@ -82,64 +80,60 @@ data ShowReadClasses = ShowReadClasses {
 	showReadClassesRead :: Bool,
 	showReadClassesClasses :: [Name] } deriving Show
 
-popIt :: Eq a => a -> [a] -> (Maybe a, [a])
-popIt x = (listToMaybe `first`) . partition (== x)
-
 showReadClasses :: [Name] -> ShowReadClasses
 showReadClasses ns = ShowReadClasses (isJust s) (isJust r) ns''
 	where (s, ns') = popIt ''Show ns; (r, ns'') = popIt ''Read ns'
 
+popIt :: Eq a => a -> [a] -> (Maybe a, [a])
+popIt x = (listToMaybe `first`) . partition (== x)
+
 mkNewtype :: String -> Name -> [Name] -> DecQ
 mkNewtype nt t ds = newtypeD (cxt []) (mkName nt) [] Nothing
-	(normalC (mkName nt) [bangType (bang noSourceUnpackedness noSourceStrictness) (conT t)])
-	$ (derivClause Nothing . (: []) . conT) <$> ds
+	(normalC (mkName nt)
+		[bangType
+			(bang noSourceUnpackedness noSourceStrictness)
+			(conT t)])
+	[derivClause Nothing $ conT <$> ds]
 
 mkMembers :: String -> [(String, Integer)] -> DecsQ
-mkMembers t nvs = concat <$> uncurry (mkMember (mkName t) (mkName t)) `mapM` nvs
+mkMembers t nvs = concat <$> uncurry (mkMember (mkName t)) `mapM` nvs
 
-mkMember :: Name -> Name -> String -> Integer -> DecsQ
-mkMember t c n v = sequence [
+mkMember :: Name -> String -> Integer -> DecsQ
+mkMember t n v = sequence [
 	patSynSigD (mkName n) (conT t),
 	patSynD (mkName n) (prefixPatSyn [])
-		(explBidir [clause [] (normalB (conE c `appE` litE (IntegerL v))) []])
-		(conP c [litP (IntegerL v)])
-	]
+		(explBidir [flip (clause []) []
+			. normalB $ conE t `appE` litE (IntegerL v)])
+		(conP t [litP (IntegerL v)]) ]
 
 mkShow :: String -> [String] -> DecQ
-mkShow t ns = instanceD (cxt []) (conT ''Show `appT` conT (mkName t))
-	[defineShowsPrec t ns]
+mkShow t ns = instanceD (cxt [])
+	(conT ''Show `appT` conT (mkName t)) [defineShowsPrec t ns]
 
 defineShowsPrec :: String -> [String] -> DecQ
-defineShowsPrec t ns = do
-	d <- newName "d"
-	n <- newName "n"
-	funD 'showsPrec [
-		clause [varP d] (normalB (lamCaseE
-			((matchFoo <$> ns) ++
-			[match (conP (mkName t) [varP n]) (normalB $ foo d n) []])
-			)) []
-		]
+defineShowsPrec t ns = newName `mapM` ["d", "n"] >>= \[d, n] ->
+	funD 'showsPrec [clause [varP d] (normalB (lamCaseE (
+		(named <$> ns) ++
+		[match (conP (mkName t) [varP n]) (normalB $ sw d n) []] ))) []]
 	where
-	foo d n = varE 'showParen `appE` (varE d .> litE (IntegerL 10))
-		.$ ((litE (StringL (t ++ " ")) `p` varE '(++))
-			... (varE 'showsPrec `appE` litE (IntegerL 11) `appE` varE n))
-
-matchFoo :: String -> MatchQ
-matchFoo f = match (conP (mkName f) []) (normalB $ litE (StringL f) `p` (varE '(++))) []
+	named f = flip (match $ conP (mkName f) []) [] 
+		. normalB $ litE (StringL f) `p` varE '(++)
+	sw d n = varE 'showParen `appE` (varE d .> litE (IntegerL 10))
+		.$ ((litE (StringL $ t ++ " ") `p` varE '(++)) ...
+			(varE 'showsPrec `appE` litE (IntegerL 11) `appE` varE n))
 
 mkRead :: String -> [String] -> DecQ
 mkRead t ns = instanceD (cxt []) (conT ''Read `appT` conT (mkName t)) . (: [])
 	$ valD (varP 'readPrec) (normalB $ varE 'parens .$ (varE 'choice `appE` listE (
-		(readFoo <$> ns) ++
+		(named <$> ns) ++
 		[varE 'prec `appE` litE (IntegerL 10) `appE` doE [
 			bindS (conP 'Ident [litP $ StringL t]) $ varE 'lexP,
 			noBindS $ conE (mkName t) .<$> (varE 'step `appE` varE 'readPrec) ]]
 		))) []
-
-readFoo :: String -> ExpQ
-readFoo n = doE [
-	bindS (conP 'Ident [litP $ StringL n]) $ varE 'lexP,
-	noBindS $ varE 'pure `appE` conE (mkName n) ]
+	where
+	named n = doE [
+		bindS (conP 'Ident [litP $ StringL n]) $ varE 'lexP,
+		noBindS $ varE 'pure `appE` conE (mkName n) ]
 
 (...), (.$), (.<$>), (.>), p :: ExpQ -> ExpQ -> ExpQ
 e1 ... e2 = infixE (Just e1) (varE '(.)) (Just e2)

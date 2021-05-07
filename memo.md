@@ -4,14 +4,14 @@ memo
 * [ ] make test
 * [x] use from other projects
 * [ ] refactoring
-	+ [ ] enum
-	+ [ ] data ShowReadClasses
-	+ [ ] popIt
-	+ [ ] showReadClasses
-	+ [ ] mkNewtype
-	+ [ ] mkMembers
-	+ [ ] mkMember
-	+ [ ] mkShow
+	+ [x] enum
+	+ [x] data ShowReadClasses
+	+ [x] showReadClasses
+	+ [x] popIt
+	+ [x] mkNewtype
+	+ [x] mkMembers
+	+ [x] mkMember
+	+ [x] mkShow
 	+ [ ] defineShowsPrec
 	+ [ ] matchFoo
 	+ [ ] mkRead
