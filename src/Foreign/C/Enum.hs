@@ -12,6 +12,7 @@ import Language.Haskell.TH (
 	conT, appT, varP, conP, litP, wildP, match,
 	doE, bindS, noBindS,
 	bangType, bang, noSourceUnpackedness, noSourceStrictness )
+import Foreign.Ptr
 import Foreign.Storable
 import Control.Arrow (first)
 import Data.Bool (bool)
@@ -161,9 +162,11 @@ deriveStorable drv org = newName `mapM` ["p", "p", "x"] >>= \[pnt, pnt', x] ->
 				(varE 'undefined `sigE` conT org))
 			[]],
 		funD 'peek [clause [varP pnt]
-			(normalB $ infixE (Just $ conE drv) (varE '(<$>))
-				. Just $ varE 'peek `appE` varE pnt)
+			(normalB $ infixE (Just $ conE drv) (varE '(<$>)) . Just
+				$ varE 'peek `appE`
+					(varE 'castPtr `appE` varE pnt))
 			[]],
 		funD 'poke [clause [varP pnt', conP drv [varP x]]
-			(normalB $ varE 'poke `appE` varE pnt' `appE` varE x)
+			(normalB $ varE 'poke `appE`
+				(varE 'castPtr `appE` varE pnt') `appE` varE x)
 			[]] ]
