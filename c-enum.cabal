@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6193eeddda031a2998034fae776898c57ad4ef04b7de0f07a6bb1db2721bf951
+-- hash: 3304cb615577eb234f30f1e492a48aa67dcd20cd1579134774ca511a964cb39f
 
 name:           c-enum
-version:        0.1.0.0
+version:        0.1.1.0
 description:    Please see the README on GitHub at <https://github.com/YoshikuniJujo/c-enum#readme>
 homepage:       https://github.com/YoshikuniJujo/c-enum#readme
 bug-reports:    https://github.com/YoshikuniJujo/c-enum/issues

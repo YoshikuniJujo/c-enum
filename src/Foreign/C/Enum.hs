@@ -8,10 +8,11 @@ import Language.Haskell.TH (
 	DecsQ, DecQ, valD, funD, instanceD,
 	patSynSigD, patSynD, prefixPatSyn, explBidir,
 	newtypeD, normalC, derivClause,
-	ExpQ, varE, conE, litE, appE, infixE, listE, lamCaseE,
-	conT, appT, varP, conP, litP, match,
+	ExpQ, varE, conE, litE, sigE, appE, infixE, listE, lamCaseE,
+	conT, appT, varP, conP, litP, wildP, match,
 	doE, bindS, noBindS,
 	bangType, bang, noSourceUnpackedness, noSourceStrictness )
+import Foreign.Storable
 import Control.Arrow (first)
 import Data.Bool (bool)
 import Data.Maybe (isJust, listToMaybe)
@@ -19,12 +20,14 @@ import Data.List (partition)
 import Text.Read (readPrec, Lexeme(..), step, choice, prec, parens, lexP)
 
 enum :: String -> Name -> [Name] -> [(String, Integer)] -> DecsQ
-enum nt t ds nvs = (\n s r ms -> n : s (r ms))
+enum nt t ds nvs = (\n s r st ms -> n : s (r (st ms)))
 	<$> mkNewtype nt t ds'
 	<*> bool (pure id) ((:) <$> mkShow nt ns) bs
 	<*> bool (pure id) ((:) <$> mkRead nt ns) br
+	<*> bool (pure id)
+		((:) <$> deriveStorable (mkName nt) t) bst
 	<*> mkMembers nt nvs
-	where ShowReadClasses bs br ds' = showReadClasses ds; ns = fst <$> nvs
+	where ShowReadClasses bs br bst ds' = showReadClasses ds; ns = fst <$> nvs
 
 {- ^
 
@@ -78,11 +81,15 @@ FooOne
 data ShowReadClasses = ShowReadClasses {
 	showReadClassesShow :: Bool,
 	showReadClassesRead :: Bool,
+	showReadClassesStorable :: Bool,
 	showReadClassesClasses :: [Name] } deriving Show
 
 showReadClasses :: [Name] -> ShowReadClasses
-showReadClasses ns = ShowReadClasses (isJust s) (isJust r) ns''
-	where (s, ns') = popIt ''Show ns; (r, ns'') = popIt ''Read ns'
+showReadClasses ns = ShowReadClasses (isJust s) (isJust r) (isJust st) ns'''
+	where
+	(s, ns') = popIt ''Show ns
+	(r, ns'') = popIt ''Read ns'
+	(st, ns''') = popIt ''Storable ns''
 
 popIt :: Eq a => a -> [a] -> (Maybe a, [a])
 popIt x = (listToMaybe `first`) . partition (== x)
@@ -141,3 +148,22 @@ e1 .$ e2 = infixE (Just e1) (varE '($)) (Just e2)
 e1 .<$> e2 = infixE (Just e1) (varE '(<$>)) (Just e2)
 e1 .> e2 = infixE (Just e1) (varE '(>)) (Just e2)
 ex `p` op = infixE (Just ex) op Nothing
+
+deriveStorable :: Name -> Name -> DecQ
+deriveStorable drv org = newName `mapM` ["p", "p", "x"] >>= \[pnt, pnt', x] ->
+	instanceD (cxt []) (appT (conT ''Storable) (conT drv)) [
+		funD 'sizeOf [clause [wildP]
+			(normalB $ varE 'sizeOf `appE`
+				(varE 'undefined `sigE` conT org))
+			[]],
+		funD 'alignment [clause [wildP]
+			(normalB $ varE 'alignment `appE`
+				(varE 'undefined `sigE` conT org))
+			[]],
+		funD 'peek [clause [varP pnt]
+			(normalB $ infixE (Just $ conE drv) (varE '(<$>))
+				. Just $ varE 'peek `appE` varE pnt)
+			[]],
+		funD 'poke [clause [varP pnt', conP drv [varP x]]
+			(normalB $ varE 'poke `appE` varE pnt' `appE` varE x)
+			[]] ]
