@@ -3,12 +3,12 @@ cabal-version: 1.12
 -- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 3304cb615577eb234f30f1e492a48aa67dcd20cd1579134774ca511a964cb39f
 
 name:           c-enum
 version:        0.1.1.0
+synopsis:       To make a type corresponding to an enum of C language
 description:    Please see the README on GitHub at <https://github.com/YoshikuniJujo/c-enum#readme>
+category:       Foreign
 homepage:       https://github.com/YoshikuniJujo/c-enum#readme
 bug-reports:    https://github.com/YoshikuniJujo/c-enum/issues
 author:         Yoshikuni Jujo
