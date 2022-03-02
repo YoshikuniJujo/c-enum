@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wall -fno-warn-tabs #-}
 
-module Foreign.C.Enum (enum) where
+module Foreign.C.Enum (enum, enumMems) where
 
 import Language.Haskell.TH (
 	Name, mkName, newName, Lit(..), clause, cxt, normalB,
@@ -27,7 +27,7 @@ enum nt t ds nvs = (\n s r st ms -> n : s (r (st ms)))
 	<*> bool (pure id) ((:) <$> mkRead nt ns) br
 	<*> bool (pure id)
 		((:) <$> deriveStorable (mkName nt) t) bst
-	<*> mkMembers nt nvs
+	<*> enumMems nt nvs
 	where ShowReadClasses bs br bst ds' = showReadClasses ds; ns = fst <$> nvs
 
 {- ^
@@ -35,11 +35,11 @@ enum nt t ds nvs = (\n s r st ms -> n : s (r (st ms)))
 Write like the following.
 
 @
-enum Foo ''Int [''Show, ''Read, ''Eq] [
-	("FooError", - 1),
-	("FooZero", 0),
-	("FooOne", 1),
-	("FooTwo", 2) ]
+enum \"Foo\" ''Int [''Show, ''Read, ''Eq] [
+	(\"FooError\", - 1),
+	(\"FooZero\", 0),
+	(\"FooOne\", 1),
+	(\"FooTwo\", 2) ]
 @
 
 Then you get like the following.
@@ -103,8 +103,20 @@ mkNewtype nt t ds = newtypeD (cxt []) (mkName nt) [] Nothing
 			(conT t)])
 	[derivClause Nothing $ conT <$> ds]
 
-mkMembers :: String -> [(String, Integer)] -> DecsQ
-mkMembers t nvs = concat <$> uncurry (mkMember (mkName t)) `mapM` nvs
+enumMems :: String -> [(String, Integer)] -> DecsQ
+enumMems t nvs = concat <$> uncurry (mkMember (mkName t)) `mapM` nvs
+
+{- ^
+
+You can define enum members separately.
+
+@
+enumMems \"Foo\" [
+	(\"FooThree\", 3),
+	(\"FooFour\", 4) ]
+@
+
+-}
 
 mkMember :: Name -> String -> Integer -> DecsQ
 mkMember t n v = sequence [
