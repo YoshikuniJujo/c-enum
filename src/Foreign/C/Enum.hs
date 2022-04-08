@@ -11,7 +11,8 @@ import Language.Haskell.TH (
 	ExpQ, varE, conE, litE, sigE, appE, infixE, listE, lamCaseE,
 	conT, appT, varP, conP, litP, wildP, match,
 	doE, bindS, noBindS,
-	bangType, bang, noSourceUnpackedness, noSourceStrictness )
+	bangType, bang, noSourceUnpackedness, noSourceStrictness,
+	TypeQ, sigD, arrowT )
 import Foreign.Ptr
 import Foreign.Storable
 import Control.Arrow (first)
@@ -21,13 +22,14 @@ import Data.List (partition)
 import Text.Read (readPrec, Lexeme(..), step, choice, prec, parens, lexP)
 
 enum :: String -> Name -> [Name] -> [(String, Integer)] -> DecsQ
-enum nt t ds nvs = (\n s r st ms -> n : s (r (st ms)))
+enum nt t ds nvs = (\n s r st ms unsf -> n : s (r (st ms)) ++ unsf)
 	<$> mkNewtype nt t ds'
 	<*> bool (pure id) ((:) <$> mkShow nt ns) bs
 	<*> bool (pure id) ((:) <$> mkRead nt ns) br
 	<*> bool (pure id)
 		((:) <$> deriveStorable (mkName nt) t) bst
 	<*> enumMems nt nvs
+	<*> unSigFun nt t
 	where ShowReadClasses bs br bst ds' = showReadClasses ds; ns = fst <$> nvs
 
 {- ^
@@ -182,3 +184,19 @@ deriveStorable drv org = newName `mapM` ["p", "p", "x"] >>= \[pnt, pnt', x] ->
 			(normalB $ varE 'poke `appE`
 				(varE 'castPtr `appE` varE pnt') `appE` varE x)
 			[]] ]
+
+unSigFun :: String -> Name -> DecsQ
+unSigFun en tp = (\s f -> [s, f]) <$> unSig en tp <*> unFun en
+
+unSig :: String -> Name -> DecQ
+unSig en tp = sigD (mkName $ "un" ++ en) $ conT (mkName en) `arrT` conT tp
+
+unFun :: String -> DecQ
+unFun en = do
+	x <- newName "x"
+	funD (mkName $ "un" ++ en) [
+		clause [conP (mkName en) [varP x]] (normalB (varE x)) []
+		]
+
+arrT :: TypeQ -> TypeQ -> TypeQ
+t1 `arrT` t2 = arrowT `appT` t1 `appT` t2
